@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  mangahub-backend:
+    build: .
+    container_name: mangahub-server
+    ports:
+      - "8080:8080" # HTTP & WebSocket
+      - "9090:9090" # TCP Sync
+      - "9091:9091/udp" # UDP Notifications (Note the /udp)
+      - "9092:9092" # gRPC
+    environment:
+      - JWT_SECRET=mangahub_production_secret_key_2026
+    volumes:
+      - mangahub-data:/app/data
+
+volumes:
+  mangahub-data:

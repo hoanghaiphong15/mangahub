@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+// Defines the Go package name for the generated code
+option go_package = "github.com/hoanghaiphong15/mangahub/pkg/proto";
+
+package mangahub;
+
+// The gRPC Service defined in your project spec 
+service MangaService {
+  rpc GetManga (GetMangaRequest) returns (MangaResponse);
+  rpc SearchManga (SearchRequest) returns (SearchResponse);
+  rpc UpdateProgress (ProgressRequest) returns (ProgressResponse);
+}
+
+// --- Messages ---
+
+message Manga {
+  string id = 1;
+  string title = 2;
+  string author = 3;
+  repeated string genres = 4;
+  string status = 5;
+  int32 total_chapters = 6;
+  string description = 7;
+}
+
+message GetMangaRequest {
+  string id = 1;
+}
+
+message MangaResponse {
+  Manga manga = 1;
+  string error = 2; // Simple error handling
+}
+
+message SearchRequest {
+  string query = 1;
+}
+
+message SearchResponse {
+  repeated Manga results = 1;
+  string error = 2;
+}
+
+message ProgressRequest {
+  string user_id = 1;
+  string manga_id = 2;
+  int32 chapter = 3;
+}
+
+message ProgressResponse {
+  bool success = 1;
+  string message = 2;
+}
