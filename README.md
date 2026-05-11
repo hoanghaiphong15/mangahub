@@ -115,7 +115,7 @@ curl "http://localhost:8080/manga?query=naruto"
 
 Example:
 ```bash
-curl http://localhost:8080/manga/abc123
+curl http://localhost:8080/manga/one-piece
 ```
 
 #### Advanced search (JSON)
@@ -124,10 +124,10 @@ curl http://localhost:8080/manga/abc123
 Body shape:
 ```json
 {
-  "keyword": "string",
-  "genres": ["action", "comedy"],
+  "keyword": "one",
+  "genres": ["action"],
   "status": "",
-  "year_range": [2000, 2020],
+  "year_range": [1900, 2020],
   "rating": 8.5,
   "sort_by": "popularity"
 }

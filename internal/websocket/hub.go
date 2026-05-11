@@ -3,7 +3,6 @@ package websocket
 import (
 	"log"
 	"sync"
-	
 
 	"github.com/gorilla/websocket"
 )
@@ -58,6 +57,7 @@ func (h *ChatHub) Run() {
 			h.mu.Unlock()
 
 		case message := <-h.Broadcast:
+			log.Printf(" Broadcasting message from %s: %s", message.Username, message.Message)
 			// A new message arrived, send it to everyone
 			h.mu.RLock()
 			for conn := range h.Clients {
