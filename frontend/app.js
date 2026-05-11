@@ -34,6 +34,11 @@ async function login() {
 
     const data = await res.json();
 
+    if (!res.ok) {
+        alert(data.error || "Login failed");
+        return;
+    }
+
     token = data.token;
 
     alert("Login success!");
