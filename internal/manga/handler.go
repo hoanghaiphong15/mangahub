@@ -29,7 +29,7 @@ func (h *Handler) SearchManga(c *gin.Context) {
 	searchQuery := c.Query("query") // e.g., /manga?query=piece
 
 	// Use LIKE for basic substring matching
-	query := `SELECT id, title, author, genres, status, total_chapters, description, year, rating, popularity FROM manga WHERE title LIKE ? LIMIT 50`
+	query := `SELECT id, title, author, genres, status, total_chapters, description, year, rating, popularity FROM manga WHERE title LIKE ? LIMIT 300`
 	rows, err := h.DB.Query(query, "%"+searchQuery+"%")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})

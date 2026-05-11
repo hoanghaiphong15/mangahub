@@ -137,6 +137,11 @@ func (s *APIServer) setupRoutes() {
 		DB: s.Database,
 	}
 
+	// Start background tasks to fetch data from MangaDex and practice scraping
+	log.Println(">>> Initializing Data Collection Tasks...")
+	go mangaHandler.FetchFromMangaDex() // run in background to fetch manga data from MangaDex API
+	go mangaHandler.PracticeScraping()  // run in background to perform educational web scraping practice
+
 	// Mount the Manga routes [cite: 814-816]
 	mangaGroup := s.Router.Group("/manga")
 	{
