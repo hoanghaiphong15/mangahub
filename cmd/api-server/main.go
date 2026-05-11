@@ -3,22 +3,23 @@ package main
 import (
 	"database/sql"
 	"log"
+	"net"
 	"net/http"
 	"os"
-	"net"
+
 	"google.golang.org/grpc"
-	
+
 	grpc_internal "github.com/hoanghaiphong15/mangahub/internal/grpc"
 	pb "github.com/hoanghaiphong15/mangahub/pkg/proto"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hoanghaiphong15/mangahub/pkg/database" 
 	"github.com/hoanghaiphong15/mangahub/internal/auth"
 	"github.com/hoanghaiphong15/mangahub/internal/manga"
-	"github.com/hoanghaiphong15/mangahub/internal/user"
 	"github.com/hoanghaiphong15/mangahub/internal/tcp"
 	"github.com/hoanghaiphong15/mangahub/internal/udp"
+	"github.com/hoanghaiphong15/mangahub/internal/user"
 	"github.com/hoanghaiphong15/mangahub/internal/websocket"
+	"github.com/hoanghaiphong15/mangahub/pkg/database"
 )
 
 // APIServer holds the core dependencies for the HTTP server [cite: 806-811]
@@ -31,20 +32,19 @@ type APIServer struct {
 	WSHub     *websocket.ChatHub
 }
 
-
 func main() {
-// 1. Initialize the SQLite Database
+	// 1. Initialize the SQLite Database
 	// Use environment variable for DB path, default to local file for standard development
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "./data.db"
 	}
 
-db, err := database.InitDB(dbPath)
-if err != nil {
-	log.Fatalf("Failed to initialize database: %v", err)
-}
-defer db.Close()
+	db, err := database.InitDB(dbPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
 
 	// 2. Start TCP Server
 	tcpServer := tcp.NewServer(":9090")
@@ -67,14 +67,14 @@ defer db.Close()
 	// 4. Start WebSocket Chat Hub
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-// 4. Start gRPC Internal Service Server on port 9092
+	// 4. Start gRPC Internal Service Server on port 9092
 	grpcListener, err := net.Listen("tcp", ":9092")
 	if err != nil {
 		log.Fatalf("Failed to listen for gRPC: %v", err)
 	}
-	
+
 	grpcServer := grpc.NewServer()
-	
+
 	// Create our implementation and register it
 	mangaGrpcService := &grpc_internal.Server{
 		DB:           db,
@@ -118,8 +118,7 @@ func (s *APIServer) setupRoutes() {
 		DB:        s.Database,
 		JWTSecret: []byte(s.JWTSecret),
 	}
-	
-	
+
 	// Simple health check endpoint
 	s.Router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "Online", "service": "HTTP API"})
@@ -130,10 +129,10 @@ func (s *APIServer) setupRoutes() {
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
-	}	
+	}
 
 	// Placeholder groups for our future endpoint
-// Initialize the Manga Handler
+	// Initialize the Manga Handler
 	mangaHandler := &manga.Handler{
 		DB: s.Database,
 	}
@@ -145,18 +144,19 @@ func (s *APIServer) setupRoutes() {
 		mangaGroup.GET("/:id", mangaHandler.GetManga)
 		mangaGroup.POST("/search", mangaHandler.AdvancedSearch)
 	}
-	
-// Initialize the User Handler
+
+	// Initialize the User Handler
 	userHandler := &user.Handler{
-		DB: s.Database,
+		DB:           s.Database,
 		TCPBroadcast: s.TCPServer.Broadcast, // Pass the TCP server's broadcast channel to the user handler
 	}
 
 	// User Library & Progress routes (Protected by JWT)
 	users := s.Router.Group("/users")
-	users.Use(auth.JWTMiddleware([]byte(s.JWTSecret))) 
+	users.Use(auth.JWTMiddleware([]byte(s.JWTSecret)))
 	{
 		users.POST("/library", userHandler.AddLibrary)
+		users.GET("/library", userHandler.GetLibrary)
 		users.PUT("/progress", userHandler.UpdateProgress)
 	}
 
@@ -167,7 +167,7 @@ func (s *APIServer) setupRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
 			return
 		}
-		
+
 		// Blast the notification via UDP!
 		s.UDPServer.Broadcast(notif)
 		c.JSON(http.StatusOK, gin.H{"message": "Notification broadcasted!"})
@@ -188,4 +188,3 @@ func getJWTSecret() string {
 	}
 	return secret
 }
-

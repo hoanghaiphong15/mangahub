@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
-	"github.com/hoanghaiphong15/mangahub/pkg/models" 
+	"github.com/hoanghaiphong15/mangahub/pkg/models"
 )
 
 // Handler groups manga-related dependencies
@@ -30,7 +29,7 @@ func (h *Handler) SearchManga(c *gin.Context) {
 	searchQuery := c.Query("query") // e.g., /manga?query=piece
 
 	// Use LIKE for basic substring matching
-	query := `SELECT id, title, author, genres, status, total_chapters, description FROM manga WHERE title LIKE ? LIMIT 20`
+	query := `SELECT id, title, author, genres, status, total_chapters, description, year, rating, popularity FROM manga WHERE title LIKE ? LIMIT 50`
 	rows, err := h.DB.Query(query, "%"+searchQuery+"%")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
@@ -42,11 +41,11 @@ func (h *Handler) SearchManga(c *gin.Context) {
 	for rows.Next() {
 		var m models.Manga
 		var genresStr string
-		
-		if err := rows.Scan(&m.ID, &m.Title, &m.Author, &genresStr, &m.Status, &m.TotalChapters, &m.Description); err != nil {
+
+		if err := rows.Scan(&m.ID, &m.Title, &m.Author, &genresStr, &m.Status, &m.TotalChapters, &m.Description, &m.Year, &m.Rating, &m.Popularity); err != nil {
 			continue // Skip problematic rows
 		}
-		
+
 		// Convert the JSON string back to a string slice
 		json.Unmarshal([]byte(genresStr), &m.Genres)
 		results = append(results, m)
@@ -66,9 +65,9 @@ func (h *Handler) GetManga(c *gin.Context) {
 	var m models.Manga
 	var genresStr string
 
-	query := `SELECT id, title, author, genres, status, total_chapters, description FROM manga WHERE id = ?`
+	query := `SELECT id, title, author, genres, status, total_chapters, description, year, rating, popularity FROM manga WHERE id = ?`
 	err := h.DB.QueryRow(query, id).Scan(
-		&m.ID, &m.Title, &m.Author, &genresStr, &m.Status, &m.TotalChapters, &m.Description,
+		&m.ID, &m.Title, &m.Author, &genresStr, &m.Status, &m.TotalChapters, &m.Description, &m.Year, &m.Rating, &m.Popularity,
 	)
 
 	if err == sql.ErrNoRows {
@@ -150,11 +149,11 @@ func (h *Handler) AdvancedSearch(c *gin.Context) {
 	for rows.Next() {
 		var m models.Manga
 		var genresStr string
-		
+
 		if err := rows.Scan(&m.ID, &m.Title, &m.Author, &genresStr, &m.Status, &m.TotalChapters, &m.Description, &m.Year, &m.Rating, &m.Popularity); err != nil {
-			continue 
+			continue
 		}
-		
+
 		json.Unmarshal([]byte(genresStr), &m.Genres)
 		results = append(results, m)
 	}

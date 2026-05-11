@@ -11,7 +11,7 @@ import (
 
 // Handler groups user library dependencies
 type Handler struct {
-	DB *sql.DB
+	DB           *sql.DB
 	TCPBroadcast chan tcp.ProgressUpdate // Channel to send progress updates to the TCP server
 }
 
@@ -41,7 +41,7 @@ func (h *Handler) AddLibrary(c *gin.Context) {
 	// For simplicity, we'll assume it's a fresh add.
 	query := `INSERT INTO user_progress (user_id, manga_id, current_chapter, status, updated_at) 
 			  VALUES (?, ?, ?, ?, ?)`
-	
+
 	_, err := h.DB.Exec(query, userID, req.MangaID, 0, req.Status, time.Now())
 	if err != nil {
 		// If UNIQUE constraint fails, it means it's already in the library
@@ -50,9 +50,9 @@ func (h *Handler) AddLibrary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Added to library successfully",
+		"message":  "Added to library successfully",
 		"manga_id": req.MangaID,
-		"status": req.Status,
+		"status":   req.Status,
 	})
 }
 
@@ -68,7 +68,7 @@ func (h *Handler) UpdateProgress(c *gin.Context) {
 
 	query := `UPDATE user_progress SET current_chapter = ?, updated_at = ? 
 			  WHERE user_id = ? AND manga_id = ?`
-	
+
 	result, err := h.DB.Exec(query, req.CurrentChapter, time.Now(), userID, req.MangaID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
@@ -90,7 +90,7 @@ func (h *Handler) UpdateProgress(c *gin.Context) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	// Use a non-blocking select so the HTTP request doesn't hang 
+	// Use a non-blocking select so the HTTP request doesn't hang
 	// if the TCP server is overwhelmed or turned off.
 	select {
 	case h.TCPBroadcast <- updateMsg:
@@ -100,7 +100,71 @@ func (h *Handler) UpdateProgress(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Progress updated successfully",
+		"message":         "Progress updated successfully",
 		"current_chapter": req.CurrentChapter,
+	})
+}
+
+func (h *Handler) GetLibrary(c *gin.Context) {
+
+	userID := c.GetString("user_id")
+
+	query := `
+		SELECT 
+			m.id,
+			m.title,
+			m.author,
+			up.current_chapter,
+			up.status,
+			up.updated_at
+		FROM user_progress up
+		JOIN manga m ON up.manga_id = m.id
+		WHERE up.user_id = ?
+	`
+
+	rows, err := h.DB.Query(query, userID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Database error",
+		})
+		return
+	}
+
+	defer rows.Close()
+
+	type LibraryItem struct {
+		MangaID        string    `json:"manga_id"`
+		Title          string    `json:"title"`
+		Author         string    `json:"author"`
+		CurrentChapter int       `json:"current_chapter"`
+		Status         string    `json:"status"`
+		UpdatedAt      time.Time `json:"updated_at"`
+	}
+
+	var library []LibraryItem
+
+	for rows.Next() {
+
+		var item LibraryItem
+
+		err := rows.Scan(
+			&item.MangaID,
+			&item.Title,
+			&item.Author,
+			&item.CurrentChapter,
+			&item.Status,
+			&item.UpdatedAt,
+		)
+
+		if err != nil {
+			continue
+		}
+
+		library = append(library, item)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"library": library,
 	})
 }
