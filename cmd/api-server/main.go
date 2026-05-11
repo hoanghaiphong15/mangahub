@@ -143,6 +143,7 @@ func (s *APIServer) setupRoutes() {
 	{
 		mangaGroup.GET("", mangaHandler.SearchManga)
 		mangaGroup.GET("/:id", mangaHandler.GetManga)
+		mangaGroup.POST("/search", mangaHandler.AdvancedSearch)
 	}
 	
 // Initialize the User Handler
@@ -187,3 +188,4 @@ func getJWTSecret() string {
 	}
 	return secret
 }
+

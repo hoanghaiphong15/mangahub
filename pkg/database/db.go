@@ -46,10 +46,13 @@ func createTables(db *sql.DB) error {
 		id TEXT PRIMARY KEY,
 		title TEXT,
 		author TEXT,
-		genres TEXT, -- Stored as a JSON array string
+		genres TEXT,
 		status TEXT,
 		total_chapters INTEGER,
-		description TEXT
+		description TEXT,
+		year INTEGER DEFAULT 2000,
+		rating REAL DEFAULT 0.0,
+		popularity INTEGER DEFAULT 0
 	);`
 
 	// Schema for user progress [cite: 917-923]
