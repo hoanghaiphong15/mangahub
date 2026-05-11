@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MangaHub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>MangaHub Dashboard</h1>
+
+    <section>
+        <h2>Register</h2>
+        <input type="text" id="regUsername" placeholder="Username">
+        <input type="password" id="regPassword" placeholder="Password">
+        <button onclick="register()">Register</button>
+    </section>
+
+    <section>
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </section>
+
+    <section>
+        <h2>Manga Search</h2>
+        <input type="text" id="searchInput" placeholder="Search manga">
+        <button onclick="searchManga()">Search</button>
+
+        <div id="mangaResults"></div>
+    </section>
+
+    <section>
+        <h2>WebSocket Chat</h2>
+
+        <input type="text" id="chatInput" placeholder="Message">
+        <button onclick="sendMessage()">Send</button>
+
+        <div id="chatBox"></div>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
