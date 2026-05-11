@@ -1,7 +1,7 @@
 package manga
 
 import (
-	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// Struct to match the response from MangaDex API (simplified for our needs)
 type MangaDexResponse struct {
 	Data []struct {
 		ID         string `json:"id"`
@@ -23,21 +22,18 @@ type MangaDexResponse struct {
 	} `json:"data"`
 }
 
-// conversion from handler.go
 func (h *Handler) FetchFromMangaDex() {
-
-	// Force the use of IPv4 only (tcp4)
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-
+	// 1. HTTP client with custom transport to mimic browser behavior and handle SSL properly
 	transport := &http.Transport{
-		// Completely disable Proxy from the environment to prevent connection errors
-		Proxy: nil,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			// Enforce IPv4 by overriding the network type to "tcp4"
-			return dialer.DialContext(ctx, "tcp4", addr)
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		// Helpful for debugging SSL issues, but in production, you should verify certificates properly
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: false,
+			ServerName:         "api.mangadex.org",
 		},
 	}
 
@@ -46,44 +42,51 @@ func (h *Handler) FetchFromMangaDex() {
 		Timeout:   60 * time.Second,
 	}
 
-	fmt.Println(">>> HARD FORCING IPv4 for MangaDex API...")
+	fmt.Println(">>> [WARP MODE] Connecting to MangaDex API with Browser Headers...")
 
-	// 2. using the custom client with IPv4 forced to call MangaDex API to get manga data
-	resp, err := client.Get("https://api.mangadex.org/manga?limit=100")
+	// 2. Create the API request with headers that mimic a real browser
+	req, err := http.NewRequest("GET", "https://api.mangadex.org/manga?limit=100", nil)
 	if err != nil {
-		fmt.Printf("Error API call: %v\n", err)
+		fmt.Printf(" Request creation failed: %v\n", err)
+		return
+	}
+
+	// Bypass Cloudflare and appear as a real browser
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Referer", "https://mangadex.org/")
+
+	// 3. Execute the request and handle the response
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf(" Connection Failed: %v\n", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Check if status code is 200
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("MangaDex API returned non-OK status: %d\n", resp.StatusCode)
+		fmt.Printf(" API returned error status: %d\n", resp.StatusCode)
 		return
 	}
 
-	// // call MangaDex API to get manga data
-	// resp, err := http.Get("https://api.mangadex.org/manga?limit=100")
-	// if err != nil {
-	// 	fmt.Println("Error API call:", err)
-	// 	return
-	// }
-	// defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf(" Failed to read body: %v\n", err)
+		return
+	}
 
-	body, _ := io.ReadAll(resp.Body)
 	var result MangaDexResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		fmt.Println("JSON decoding error :", err)
+		fmt.Println(" JSON decoding error:", err)
 		return
 	}
 
-	// prepare SQL statement for inserting/updating manga data
+	// 4. Save the fetched manga data into the database
 	query := `INSERT OR REPLACE INTO manga (id, title, author, genres, status, total_chapters, description, year, rating, popularity) 
 			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	count := 0
 	for _, m := range result.Data {
-		// take the English title if available, otherwise take any available title
 		title := m.Attributes.Title["en"]
 		if title == "" {
 			for _, v := range m.Attributes.Title {
@@ -92,9 +95,8 @@ func (h *Handler) FetchFromMangaDex() {
 			}
 		}
 
-		// Since the API doesn't provide author and genres, we will use placeholders for now
 		author := "Unknown Author"
-		genres := "[\"Action\", \"API fetched\"]" // make it a JSON string to match our DB schema
+		genres := `["Action", "API fetched"]`
 		status := m.Attributes.Status
 		if status == "" {
 			status = "ongoing"
@@ -108,28 +110,15 @@ func (h *Handler) FetchFromMangaDex() {
 		year := m.Attributes.Year
 		if year == 0 {
 			year = 2026
-		} // default to current year if not provided
+		}
 
-		// 3. Execute into database
-		_, err := h.DB.Exec(query,
-			m.ID,
-			title,
-			author,
-			genres,
-			status,
-			0, // total_chapters default 0 because API doesn't provide it, can be updated later
-			description,
-			year,
-			0.0, // rating default
-			0,   // popularity default
-		)
-
+		_, err := h.DB.Exec(query, m.ID, title, author, genres, status, 0, description, year, 0.0, 0)
 		if err != nil {
-			fmt.Printf("Error save %s: %v\n", title, err)
+			fmt.Printf("Error saving %s: %v\n", title, err)
 		} else {
 			count++
 		}
 	}
 
-	fmt.Printf("--- Successful: adding to %d  manga from API MangaDex! ---\n", count)
+	fmt.Printf("\n --- SUCCESS --- \nSuccessfully added %d manga to database via WARP!\n", count)
 }
