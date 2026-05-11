@@ -20,6 +20,7 @@ import (
 	"github.com/hoanghaiphong15/mangahub/internal/user"
 	"github.com/hoanghaiphong15/mangahub/internal/websocket"
 	"github.com/hoanghaiphong15/mangahub/pkg/database"
+	"github.com/gin-contrib/cors"
 )
 
 // APIServer holds the core dependencies for the HTTP server [cite: 806-811]
@@ -97,6 +98,8 @@ func main() {
 		UDPServer: udpServer,
 		WSHub:     wsHub,
 	}
+
+	server.Router.Use(cors.Default())
 
 	// 6. Register Routes
 	server.setupRoutes()
