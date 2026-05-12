@@ -25,5 +25,5 @@ POST localhost/manga/search
 }
 
 wscat -c ws://localhost:8080/ws
-{"user_id":"u1","username":"Phong","message":"Hello từ terminal 1"}
+{"user_id":"u1","username":"Phong","message":"Hello from terminal 1"}
 
