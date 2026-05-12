@@ -27,3 +27,5 @@ POST localhost/manga/search
 wscat -c ws://localhost:8080/ws
 {"user_id":"u1","username":"Phong","message":"Hello from terminal 1"}
 
+docker-compose up 
+chay dong thoi tat ca cac service ( api-server, tcp, udp, grpc)
