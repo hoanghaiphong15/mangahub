@@ -12,6 +12,7 @@ import (
 	grpc_internal "github.com/hoanghaiphong15/mangahub/internal/grpc"
 	pb "github.com/hoanghaiphong15/mangahub/pkg/proto"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/hoanghaiphong15/mangahub/internal/auth"
 	"github.com/hoanghaiphong15/mangahub/internal/manga"
@@ -20,7 +21,6 @@ import (
 	"github.com/hoanghaiphong15/mangahub/internal/user"
 	"github.com/hoanghaiphong15/mangahub/internal/websocket"
 	"github.com/hoanghaiphong15/mangahub/pkg/database"
-	"github.com/gin-contrib/cors"
 )
 
 // APIServer holds the core dependencies for the HTTP server [cite: 806-811]
@@ -122,9 +122,18 @@ func (s *APIServer) setupRoutes() {
 		JWTSecret: []byte(s.JWTSecret),
 	}
 
-	// Simple health check endpoint
+	// Health check endpoint - reports status of all services
 	s.Router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "Online", "service": "HTTP API"})
+		c.JSON(http.StatusOK, gin.H{
+			"status": "online",
+			"services": gin.H{
+				"http":      gin.H{"port": "8080", "status": "online"},
+				"tcp":       gin.H{"port": "9090", "status": "online", "connections": s.TCPServer.ConnectionCount()},
+				"udp":       gin.H{"port": "9091", "status": "online", "subscribers": s.UDPServer.SubscriberCount()},
+				"websocket": gin.H{"endpoint": "/ws", "status": "online", "clients": s.WSHub.ClientCount()},
+				"grpc":      gin.H{"port": "9092", "status": "online"},
+			},
+		})
 	})
 
 	// Mount the Auth routes [cite: 812-813]

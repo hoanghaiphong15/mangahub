@@ -30,6 +30,13 @@ func NewServer(port string) *NotificationServer {
 	}
 }
 
+// SubscriberCount returns the number of subscribed UDP clients (thread-safe)
+func (s *NotificationServer) SubscriberCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.Clients)
+}
+
 // Start opens the UDP listener and waits for subscriptions
 func (s *NotificationServer) Start() error {
 	addr, err := net.ResolveUDPAddr("udp", s.Port)
@@ -55,14 +62,14 @@ func (s *NotificationServer) Start() error {
 		}
 
 		msg := string(buf[:n])
-		
+
 		// If a client sends "subscribe", add them to our list [cite: 1358-1361]
 		if msg == "subscribe" {
 			s.mu.Lock()
 			s.Clients[clientAddr.String()] = clientAddr
 			s.mu.Unlock()
 			log.Printf("UDP Client subscribed: %s", clientAddr.String())
-			
+
 			// Send a quick confirmation back
 			conn.WriteToUDP([]byte(`{"message": "Successfully subscribed to notifications!"}`+"\n"), clientAddr)
 		}
@@ -71,19 +78,20 @@ func (s *NotificationServer) Start() error {
 
 // Broadcast sends a notification to all subscribed clients [cite: 1363-1368]
 func (s *NotificationServer) Broadcast(notification Notification) {
-	addr, _ := net.ResolveUDPAddr("udp", s.Port)
-	conn, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		log.Printf("Failed to create UDP broadcast connection: %v", err)
-		return
-	}
-	defer conn.Close()
-
 	data, err := json.Marshal(notification)
 	if err != nil {
+		log.Printf("UDP Broadcast: failed to marshal notification: %v", err)
 		return
 	}
 	data = append(data, '\n')
+
+	// Open a sender socket bound to a random port (not the server port)
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 0})
+	if err != nil {
+		log.Printf("UDP Broadcast: failed to open sender socket: %v", err)
+		return
+	}
+	defer conn.Close()
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -92,7 +100,7 @@ func (s *NotificationServer) Broadcast(notification Notification) {
 	for _, clientAddr := range s.Clients {
 		_, err := conn.WriteToUDP(data, clientAddr)
 		if err != nil {
-			log.Printf("Failed to send UDP to %s: %v", clientAddr.String(), err)
+			log.Printf("UDP Broadcast: failed to send to %s: %v", clientAddr.String(), err)
 		}
 	}
 }

@@ -34,6 +34,13 @@ func NewHub() *ChatHub {
 	}
 }
 
+// ClientCount returns the number of connected WebSocket clients (thread-safe)
+func (h *ChatHub) ClientCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.Clients)
+}
+
 // Run starts the infinite loop to handle registrations and broadcasts [cite: 888-891]
 func (h *ChatHub) Run() {
 	log.Println("Starting WebSocket Chat Hub...")
@@ -59,16 +66,24 @@ func (h *ChatHub) Run() {
 		case message := <-h.Broadcast:
 			log.Printf(" Broadcasting message from %s: %s", message.Username, message.Message)
 			// A new message arrived, send it to everyone
+			var toRemove []*websocket.Conn
 			h.mu.RLock()
 			for conn := range h.Clients {
-				err := conn.WriteJSON(message)
-				if err != nil {
+				if err := conn.WriteJSON(message); err != nil {
 					log.Printf("WebSocket Write Error: %v", err)
-					conn.Close()
-					delete(h.Clients, conn)
+					toRemove = append(toRemove, conn)
 				}
 			}
 			h.mu.RUnlock()
+			// Remove failed connections under write lock (safe)
+			if len(toRemove) > 0 {
+				h.mu.Lock()
+				for _, conn := range toRemove {
+					conn.Close()
+					delete(h.Clients, conn)
+				}
+				h.mu.Unlock()
+			}
 		}
 	}
 }

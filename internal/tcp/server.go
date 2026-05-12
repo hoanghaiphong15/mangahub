@@ -28,8 +28,15 @@ func NewServer(port string) *ProgressSyncServer {
 	return &ProgressSyncServer{
 		Port:        port,
 		Connections: make(map[string]net.Conn),
-		Broadcast:   make(chan ProgressUpdate), // Unbuffered channel for broadcasts
+		Broadcast:   make(chan ProgressUpdate, 100), // Buffered channel to prevent deadlock
 	}
+}
+
+// ConnectionCount returns the number of active TCP connections (thread-safe)
+func (s *ProgressSyncServer) ConnectionCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.Connections)
 }
 
 // Start opens the TCP listener and begins accepting clients [cite: 932]
@@ -50,8 +57,8 @@ func (s *ProgressSyncServer) Start() error {
 			log.Printf("Failed to accept connection: %v", err)
 			continue
 		}
-		
-		// Spin up a new goroutine for every single client 
+
+		// Spin up a new goroutine for every single client
 		go s.handleConnection(conn)
 	}
 }
