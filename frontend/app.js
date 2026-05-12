@@ -56,21 +56,3 @@ async function searchManga() {
     document.getElementById("mangaResults").innerHTML =
         JSON.stringify(data, null, 2);
 }
-
-function connectWebSocket() {
-    socket = new WebSocket("ws://localhost:8080/ws");
-
-    socket.onmessage = (event) => {
-        const chatBox = document.getElementById("chatBox");
-
-        chatBox.innerHTML += `<p>${event.data}</p>`;
-    };
-}
-
-function sendMessage() {
-    const input = document.getElementById("chatInput");
-
-    socket.send(input.value);
-
-    input.value = "";
-}
