@@ -44,7 +44,7 @@ func JWTMiddleware(secret []byte) gin.HandlerFunc {
 			return
 		}
 
-		// 4. Extract claims and set user_id in the context for handlers to use
+		// 4. Extract claims and set user_id in the request context for handlers to use
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			userID, ok := claims["user_id"].(string)
 			if !ok {

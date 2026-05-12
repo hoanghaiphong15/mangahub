@@ -49,10 +49,10 @@ async function login() {
 async function searchManga() {
     const query = document.getElementById("searchInput").value;
 
-    const res = await fetch(`${API}/manga?q=${query}`);
+    const res = await fetch(`${API}/manga?query=${query}`);
 
     const data = await res.json();
 
     document.getElementById("mangaResults").innerHTML =
-        JSON.stringify(data, null, 2);
+        JSON.stringify(data.results, null, 2);
 }
